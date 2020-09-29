@@ -192,3 +192,182 @@ return (
 ```
 
 Here we're building the basic interface for our app. We'll extrapolate parts of this interface into re-usable components and will then make it a bit more dynamic with `state`.
+
+## Re-usable Components
+
+Let's go ahead and split off our "items" into a re-usable component. We'll make a `<CatalogItem>` component that takes in props (properties) so we can re-use the same interface for different pieces of data.
+
+Right above `function App()`, insert the following:
+
+```jsx
+function CatalogItem(props) {
+  return (
+    <div className="item">
+      <h2>{props.title}</h2>
+      <h3>{props.price}</h3>
+      <button onClick={props.handleClick}>Add to Cart</button>
+    </div>
+  )
+}
+```
+
+This will define a `CatalogItem` component that will take props and render it into some HTML. We can then use this component like so:
+
+```jsx
+<CatalogItem 
+  title="Airpods" 
+  price={250} 
+  handleClick={() => {
+    alert('Hello');
+  }}
+/>
+```
+
+Here we are passing in a title, Airpods, the price, 250, and for now a function that alerts the window. Let's use this component in our `App` component. Go ahead and update our return statement so it looks like:
+
+```jsx
+return (
+  <div className="container">
+    <div className="items">
+      <CatalogItem
+        title="Cracking the Coding Interview"
+        price={20}
+        handleClick={() => {
+          alert('Helo');
+        }}
+      />
+    </div>
+
+    <div className="cart">
+      <h1>Shopping Cart</h1>
+
+      <div className="cart-entry">
+        <h2>Cracking the Coding Interview</h2>
+        <h3>20</h3>
+      </div>
+
+      <h2 className="cart-total">Total Cost: $20</h2>
+    </div>
+  </div>
+);
+```
+
+When you save, you should see nothing visible change but this time, we're using a re-usable component. Now we can have multiple catalog items that look the same, just with their data tweaked! Go ahead and copy/paste a few more `CatalogItem` components and modify the data to see changes reflected live. 
+
+Now that's great, but we can be smarter. Let's say we had a list of JavaScript objects that looked like the following:
+
+```jsx
+export default [
+  {
+    title: "PS5",
+    price: 500
+  },
+  {
+    title: "Airpods",
+    price: 250
+  },
+  {
+    title: "Socks",
+    price: 25
+  },
+  ...
+]
+```
+
+We should be able to generate a list of components automatically... cause we're programmers! So we'll do just that.
+
+Make a new file in `src` and call it `catalog.js` (`src/catalog.js`). Paste the following in:
+
+```js
+export default [
+  {
+    title: "PS5",
+    price: 500
+  },
+  {
+    title: "Airpods",
+    price: 250
+  },
+  {
+    title: "Socks",
+    price: 25
+  },
+  {
+    title: "Bitcoin",
+    price: 10000
+  },
+  {
+    title: "USC 1yr Tuition",
+    price: 59260
+  },
+  {
+    title: "Arizona Iced Tea",
+    price: 1
+  },
+  {
+    title: "Cracking the Coding Interview",
+    price: 20
+  },
+  {
+    title: "Soylent Pack of 12",
+    price: 40
+  },
+  {
+    title: "Allbirds",
+    price: 95
+  }
+]
+```
+
+Here, we're using the import/export features of ES6 so we can contrl this data in a separate file.
+
+In `App.js`, add this line somewhere in the import section:
+
+```jsx
+import catalog from './catalog';
+```
+
+Next, in our `function App`, insert this right before the `return` statement:
+
+```jsx
+const catalogItems = catalog.map((item) => {
+  return (
+    <CatalogItem
+      title={item.title}
+      price={item.price}
+      handleClick={
+        () => {
+          alert(item.title, item.price);
+        }
+      }
+    />
+  )
+});
+```
+
+What we're doing here is importing our data list as a variable `catalog`. Then we use the ES6 array function `.map()` which generates a new array. `.map` takes in a function that defines how we "map" or transform the original data to something new. Here we are mapping each item entry to an instance of the `CatalogItem` component. We store this new map into `catalogItems`. Now to render, we want to update our return statement so that it looks like the following:
+
+```jsx
+return (
+  <div className="container">
+    <div className="items">
+      {catalogItems}
+    </div>
+
+    <div className="cart">
+      <h1>Shopping Cart</h1>
+
+      <div className="cart-entry">
+        <h2>Cracking the Coding Interview</h2>
+        <h3>20</h3>
+      </div>
+
+      <h2 className="cart-total">Total Cost: $20</h2>
+    </div>
+  </div>
+);
+```
+
+Note how we embed variables using curly brackets. This works for literal values, renderable items (components, `null`, `undefined`) or arrays that contain renderable items. If you save the app, you should see a grid of items being rendered. If you modify some of the data in `src/catalog.js`, you'll be able to add/modify/remove items to your pleasing. Now this is cool, but we want to do something actionable and dynamic. Up until now, it's been mostly static. Let's add some dynamic `state` and interactability into our app!
+
+## State!
