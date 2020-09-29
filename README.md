@@ -337,7 +337,7 @@ const catalogItems = catalog.map((item) => {
       price={item.price}
       handleClick={
         () => {
-          alert(item.title, item.price);
+          alert([item.title, item.price]);
         }
       }
     />
@@ -371,3 +371,166 @@ return (
 Note how we embed variables using curly brackets. This works for literal values, renderable items (components, `null`, `undefined`) or arrays that contain renderable items. If you save the app, you should see a grid of items being rendered. If you modify some of the data in `src/catalog.js`, you'll be able to add/modify/remove items to your pleasing. Now this is cool, but we want to do something actionable and dynamic. Up until now, it's been mostly static. Let's add some dynamic `state` and interactability into our app!
 
 ## State!
+
+Here comes the fun: we're going to be using hooks to add state to our App. Go ahead and update line 1 of `App.js` so that it looks like the following:
+
+```jsx
+import React, { useState, useCallback, useMemo } from 'react';
+``` 
+
+We're going to import the `useState`, `useCallback`, and `useMemo` hooks which we'll be using in a bit. (Note on imports: we are explicit about what we import to make it clear to the compiler what we actually use. This helps keep our compiled app size small).
+
+Next, at the top of `function App()`, we want to add the following:
+
+```jsx
+// Dynamic state variable that maintains our cart array
+const [cart, setCart] = useState([]);
+
+// Updates our `cart` list with whatever object is passed into it
+const addToCart = useCallback((item) => {
+  setCart([
+    ...cart,
+    item
+  ])
+}, [cart]);
+```
+
+First, we are defining some state. The variable `cart` is a dynamic state variable and we can use `setCart` to update the value of cart (ex: `setCart([1,2,3])` would update cart to equal `[1,2,3]`). The empty list we pass into `useState` is the default value. 
+
+Next, we define a callback called `addToCart`. This is a function that takes in an `item` parameter, and uses the `setCart` method to update the value of cart. NOTE: We have a second argument `[cart]` which tells the React hook that we depend on the value of `cart`. In other words, the logic of our callback relies on the value of `cart` so if `cart` gets updated, so does our logic. This is a feature of hooks that might not seem that great but actually is: it makes us write code in a functional way and makes us be explicit as to how our component should *react* to changes.
+
+Note the interesting syntax of we do inside `setCart`. Here we are using the spread operator. This is how we add `item` to an array by creating a new array. The spread operator lets us "expand" an iterable like an array. If that doesn't make sense, look at this example:
+
+```js
+const a = [1,2,3];
+const b = [0, ...a, 4, 5];
+
+console.log(b);
+// b = [0,1,2,3,4,5]
+```
+
+Now we need to actually use this callback and state. Let's update our `catalogItems` map call so that it looks like the following:
+
+```jsx
+const catalogItems = catalog.map((item) => {
+  return (
+    <CatalogItem
+      title={item.title}
+      price={item.price}
+      handleClick={
+        () => {
+          addToCart(item);
+        }
+      }
+    />
+  )
+});
+```
+
+Previously, we were simply doing alerts, but now we're going to call a callback function that updates our state. If you save `App.js` and try the app, you'll notice that clicking the buttons no longer sends alerts... but that we're also not seeing any UI updates. 
+
+Next, we need to hook up our interface so that it dynamically generates UI pieces for each item we have in our cart.
+
+## Cart Components
+
+Let's define another re-usable component, this time called `CartEntry`. In `App.js`, define a separate function so that it looks like the following:
+
+```jsx
+function CartEntry(props) {
+  return (
+    <div className="cart-entry">
+      <h2>{props.title}</h2>
+      <h3>{props.price}</h3>
+    </div>
+  )
+}
+```
+
+Here we define a `<CartEntry />` component that we can re-use with different props. It's actually very similar to our `<CatalogItem />` component but with a different CSS class and no button. Next, we need to write some code that will generate `<CartEntry />` components for each item in our `cart` state.
+
+Before our return statement in `function App()`, add the following:
+
+```jsx
+// Unlike catalogItems which relies on a static variable, cartItems relies on a dynamic state variable
+// Therefore, we use the useMemo hook to re-calculate/render whenever dependencies change, which in this case is only the cart array
+const cartItems = useMemo(() => {
+  return cart.map((item) => {
+    return (
+      <CartEntry
+        title={item.title}
+        price={item.price}
+      />
+    )
+  });
+}, [cart]);
+```
+
+Here we do something a bit different. This is similar to `catalogItems` but instead, we wrap our `.map` call with `useMemo`. `useMemo` is a hook that takes two parameters: first a function that returns a value, second is a dependency list. Here, we are telling React to re-calculate/re-run that function and store the value in `cartItems` whenever the value of something in our dependency list changes. In this case, we are telling React to re-map and re-render our `CartEntry` components whenever `cart`, our state variable changes. 
+
+Now we can use `cartItems` in our return statement. Go ahead and update our return statement so that it looks like:
+
+```jsx
+return (
+  <div className="container">
+    <div className="items">
+      {catalogItems}
+    </div>
+
+    <div className="cart">
+      <h1>Shopping Cart</h1>
+
+      {
+        /* We can use the ternary operator to do conditional logic while rendering */
+        cart.length > 0 ? (
+          cartItems
+        ) : (
+          <p>No items in cart...</p>
+        )
+      }
+
+      <h2 className="cart-total">Total Cost: $20</h2>
+    </div>
+  </div>
+);
+```
+
+Note that we add some logic for displaying a `<p>` message if there are no items in cart. This is an example of how we can embed some conditional logic into our rendering. Useful for in-line logic. This is a ternary expression which uses the format: `x ? a : b` (if `x` is true, return `a`, otherwise return `b`).
+
+Now if you save and run the app, you'll be able to click "Add to cart" buttons and see the cart UI change! Congrats, you've just wrote some interactive React components with state!
+
+## Final flourish: cart total
+
+One last piece is calculating the total for our cart. To do that, we'll use the `useMemo` hook once more. Right before our return statement, we can write the following:
+
+```jsx
+// We re-calculate the cart total amount whenever new items are added to our "cart" array
+const cartTotal = useMemo(() => {
+  let total = 0;
+  cart.forEach((item) => {
+    total += item.price;
+  });
+
+  return total;
+}, [cart]);
+```
+
+Again, `useMemo` will return the value of its first function whenever variables in the dependency array change. Whenever cart changes, we re-calculate the total cost. (Note: there is a more elegant way to do this using the `.reduce` function but don't want to get too deep into the cool/complex array methods out there. If you're curious, you can read more about reduce [here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/Reduce))
+
+We can then use this `cartTotal` variable in our return statement. Let's go ahead and update the `cart-total` h2 so that it reads:
+
+```jsx
+<h2 className="cart-total">Total Cost: ${cartTotal}</h2>
+```
+
+Now if you save your React app, you'll see your cart total update as you add more items. Tada! We've built a basic shopping cart app that is dynamic and has state. Now there are some things we didn't get into like the `useEffect` hook and more, but hopefully this gets you started with what's possible with React. I highly recommend you check out the links in the further reading section so you can learn more about what is possible in React
+
+## Further Reading
+
+* [React Hooks — advantages and comparison to older reusable logic approaches in short](https://medium.com/@mateuszroth/react-hooks-advantages-and-comparison-to-older-reusable-logic-approaches-in-short-f424c9899cb5)
+* [Introducing hooks](https://reactjs.org/docs/hooks-intro.html)
+* [Intro to React](https://reactjs.org/tutorial/tutorial.html)
+* [Another introduction to hooks](https://daveceddia.com/intro-to-hooks/)
+
+## Questions, Comments?
+
+If you have any questions, don't hesitate to reach out to me on [Twitter](https://twitter.com/wilhelm_willie), via e-mail at wilhelmwillie@gmail.com, or on the Scope Slack org. I'm more than willing to help you out with any React questions or if you want to sit down and debug some code, I'm more than willing to help with that as well.
